@@ -22,7 +22,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     tableName: env['TABLE_NAME'] ?? 'service-requests',
     region: env['AWS_REGION'] ?? 'us-east-1',
     ...(env['DYNAMO_ENDPOINT'] ? { dynamoEndpoint: env['DYNAMO_ENDPOINT'] } : {}),
-    corsOrigins: (env['CORS_ORIGINS'] ?? 'http://localhost:4200').split(',').map((o) => o.trim()),
+    corsOrigins: (env['CORS_ORIGINS'] ?? 'http://localhost:4200')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     auth: loadAuthConfig(env),
     logLevel: env['LOG_LEVEL'] ?? 'info',
   };
