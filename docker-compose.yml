@@ -1,0 +1,55 @@
+# Levanta todo con: docker compose up --build
+#   web      http://localhost:4200  (Angular servido por nginx, proxy /api -> api)
+#   api      http://localhost:3000  (Fastify)
+#   dynamodb http://localhost:8000  (DynamoDB Local)
+#   seed     job único: crea la tabla y carga ~50.000 solicitudes antes de que arranque la API
+
+x-api-image: &api-image
+  image: mesa-solicitudes-api:local
+  build:
+    context: .
+    dockerfile: api/Dockerfile
+
+x-api-env: &api-env
+  TABLE_NAME: service-requests
+  AWS_REGION: us-east-1
+  DYNAMO_ENDPOINT: http://dynamodb:8000
+  AUTH_DEV_SECRET: ${AUTH_DEV_SECRET:-local-dev-only-secret-not-for-production}
+
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.6.1
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8000:8000"
+
+  seed:
+    <<: *api-image
+    command: ["node", "dist/scripts/seed.js"]
+    environment:
+      <<: *api-env
+      SEED_VOLUME: ${SEED_VOLUME:-50000}
+    depends_on:
+      - dynamodb
+    restart: "no"
+
+  api:
+    <<: *api-image
+    environment:
+      <<: *api-env
+      PORT: "3000"
+      CORS_ORIGINS: http://localhost:4200
+    ports:
+      - "3000:3000"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: web
+    ports:
+      - "4200:8080"
+    depends_on:
+      api:
+        condition: service_healthy

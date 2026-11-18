@@ -52,7 +52,7 @@ async function seedTenant(doc: DynamoDBDocumentClient, tenant: TenantSeed): Prom
   await runWithConcurrency(batches, CONCURRENCY, async (batch) => {
     await writeBatch(doc, batch);
     done += batch.length;
-    if (done % 5000 < BATCH_SIZE) console.log(`  ${tenant.tenantId}: ${done}/${tenant.count}`);
+    if (done % 10_000 === 0) console.log(`  ${tenant.tenantId}: ${done}/${tenant.count}`);
   });
   await doc.send(
     new PutCommand({

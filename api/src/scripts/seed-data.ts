@@ -64,7 +64,9 @@ const PATH: readonly { action: WorkflowAction; to: RequestStatus; byAnalyst: boo
   { action: 'CONFIRM', to: 'CLOSED', byAnalyst: false },
 ];
 
-function buildHistory(seed: TenantSeed, status: RequestStatus, createdAt: number): StatusChange[] {
+function buildHistory(seed: TenantSeed, status: RequestStatus, createdAt: number, now: number): StatusChange[] {
+  // Los pasos se reparten entre la creación y "ahora": ningún cambio queda en el futuro.
+  const stepMs = Math.min(DAY_MS, Math.floor((now - createdAt) / (PATH.length + 1)));
   const history: StatusChange[] = [
     { action: 'CREATE', from: null, to: 'REGISTERED', byUserId: seed.requesterId, byRole: 'REQUESTER', at: new Date(createdAt).toISOString() },
   ];
@@ -77,7 +79,7 @@ function buildHistory(seed: TenantSeed, status: RequestStatus, createdAt: number
       to: step.to,
       byUserId: step.byAnalyst ? seed.analystId : seed.requesterId,
       byRole: step.byAnalyst ? 'ANALYST' : 'REQUESTER',
-      at: new Date(createdAt + (index + 1) * DAY_MS).toISOString(),
+      at: new Date(createdAt + (index + 1) * stepMs).toISOString(),
       ...(step.comment ? { comment: step.comment } : {}),
     });
     current = step.to;
@@ -87,11 +89,11 @@ function buildHistory(seed: TenantSeed, status: RequestStatus, createdAt: number
 
 export function buildRequest(seed: TenantSeed, number: number, now: number, random: () => number): ServiceRequest {
   const ageRatio = 1 - number / seed.count;
-  const createdAt = now - Math.round(ageRatio * 730 * DAY_MS) - Math.round(random() * DAY_MS);
+  const createdAt = now - Math.round(ageRatio * 730 * DAY_MS) - Math.round(random() * DAY_MS) - 60_000;
   const category = CATEGORIES[number % CATEGORIES.length] ?? 'PURCHASES';
   const templates = TITLES[category];
   const title = templates[Math.floor(random() * templates.length)]?.(number) ?? `Solicitud ${number}`;
-  const history = buildHistory(seed, pickStatus(ageRatio, random), createdAt);
+  const history = buildHistory(seed, pickStatus(ageRatio, random), createdAt, now);
   const last = history[history.length - 1];
   return {
     tenantId: seed.tenantId,
