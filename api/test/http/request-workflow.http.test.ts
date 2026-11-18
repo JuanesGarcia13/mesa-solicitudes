@@ -84,4 +84,69 @@ describe('request workflow over HTTP', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
+
+  describe('every invalid attempt leaves the request exactly as it was', () => {
+    type Actor = (typeof USERS)[keyof typeof USERS];
+    interface InvalidAttempt {
+      readonly name: string;
+      readonly setup: () => Promise<unknown>;
+      readonly attempt: () => Promise<{ statusCode: number; json: () => { code: string; message: string } }>;
+      readonly status: number;
+      readonly code: string;
+      readonly message: RegExp;
+    }
+
+    const steps = async (...path: [Actor, string, string?][]) => {
+      for (const [user, action, comment] of path) await move(user, action, comment);
+    };
+
+    const cases: InvalidAttempt[] = [
+      {
+        name: 'skipping a stage',
+        setup: async () => undefined,
+        attempt: () => move(USERS.analystA, 'RESOLVE', 'Listo'),
+        status: 409,
+        code: 'INVALID_TRANSITION',
+        message: /Siguiente paso: el analista puede iniciar la atención/,
+      },
+      {
+        name: 'the wrong role acting',
+        setup: () => steps([USERS.analystA, 'START'], [USERS.analystA, 'RESOLVE', 'Listo']),
+        attempt: () => move(USERS.analystA, 'CONFIRM'),
+        status: 403,
+        code: 'ACTION_NOT_ALLOWED',
+        message: /Solo la filial puede confirmar/,
+      },
+      {
+        name: 'a missing required comment',
+        setup: () => steps([USERS.analystA, 'START']),
+        attempt: () => move(USERS.analystA, 'RESOLVE'),
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: /debes indicar un comentario/,
+      },
+      {
+        name: 'changing a closed request',
+        setup: () =>
+          steps([USERS.analystA, 'START'], [USERS.analystA, 'RESOLVE', 'Listo'], [USERS.requesterA, 'CONFIRM']),
+        attempt: () => move(USERS.requesterA, 'REJECT', 'Quiero reabrir'),
+        status: 409,
+        code: 'REQUEST_CLOSED',
+        message: /cerrada y no admite cambios/,
+      },
+    ];
+
+    it.each(cases)('$name -> $status $code, request unchanged', async (c) => {
+      await c.setup();
+      const before = (await t.as(USERS.requesterA).get(url)).json();
+
+      const res = await c.attempt();
+
+      expect(res.statusCode).toBe(c.status);
+      expect(res.json().code).toBe(c.code);
+      expect(res.json().message).toMatch(c.message);
+      const after = (await t.as(USERS.requesterA).get(url)).json();
+      expect(after).toEqual(before);
+    });
+  });
 });
