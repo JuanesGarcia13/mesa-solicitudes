@@ -1,0 +1,19 @@
+{
+  "name": "mesa-solicitudes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mesa de Solicitudes multi-filial: API Node.js + TypeScript, frontend Angular 20 e infraestructura AWS CDK.",
+  "workspaces": [
+    "api",
+    "infra"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present && npm run lint --prefix web",
+    "test": "npm run test --workspaces --if-present && npm run test:ci --prefix web",
+    "build": "npm run build --workspaces --if-present && npm run build --prefix web",
+    "synth": "npm run synth --workspace infra"
+  }
+}
