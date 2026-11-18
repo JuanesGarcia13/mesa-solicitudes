@@ -1,0 +1,161 @@
+<section class="page">
+  <header class="page__header">
+    <div>
+      <h1>Mis solicitudes</h1>
+      <p class="page__subtitle">Consulta en qué va cada solicitud de tu filial.</p>
+    </div>
+
+    <form class="search" role="search" (submit)="search($event)">
+      <label for="search-number" class="visually-hidden">Buscar por número</label>
+      <input
+        id="search-number"
+        type="search"
+        inputmode="numeric"
+        placeholder="Buscar por número, ej. 1250"
+        [value]="searchTerm()"
+        (input)="onSearchInput($event)"
+        [attr.aria-invalid]="searchError() ? true : null"
+        aria-describedby="search-error"
+      />
+      <button type="submit" class="btn btn--primary">Buscar</button>
+    </form>
+  </header>
+  @if (searchError()) {
+    <p id="search-error" class="field-error" role="alert">{{ searchError() }}</p>
+  }
+
+  <nav class="filters" aria-label="Filtrar por estado">
+    @for (filter of filters; track filter.label) {
+      <button
+        type="button"
+        class="chip"
+        [class.chip--active]="store.status() === filter.value"
+        [attr.aria-pressed]="store.status() === filter.value"
+        (click)="store.setStatus(filter.value)"
+      >
+        {{ filter.label }}
+      </button>
+    }
+  </nav>
+
+  <div class="layout" [class.layout--with-detail]="store.detail()">
+    <div class="results" aria-live="polite">
+      @switch (store.state()) {
+        @case ('loading') {
+          <div class="skeleton" aria-label="Cargando solicitudes">
+            @for (row of [1, 2, 3, 4, 5, 6]; track row) {
+              <div class="skeleton__row"></div>
+            }
+          </div>
+        }
+        @case ('error') {
+          <div class="state state--error" role="alert">
+            <h2>No pudimos cargar tus solicitudes</h2>
+            <p>{{ store.error() }}</p>
+            <button type="button" class="btn btn--primary" (click)="store.reload()">Reintentar</button>
+          </div>
+        }
+        @default {
+          @if (store.isEmpty()) {
+            <div class="state state--empty">
+              <h2>Sin solicitudes</h2>
+              <p>{{ emptyMessage() }}</p>
+            </div>
+          } @else {
+            <table class="table">
+              <caption class="visually-hidden">Solicitudes de la filial</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Número</th>
+                  <th scope="col">Asunto</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Última actualización</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of store.items(); track item.number) {
+                  <tr
+                    tabindex="0"
+                    [class.is-selected]="store.detail()?.number === item.number"
+                    (click)="store.open(item.number)"
+                    (keydown.enter)="store.open(item.number)"
+                  >
+                    <td class="num">#{{ item.number }}</td>
+                    <td class="title">{{ item.title }}</td>
+                    <td>{{ categoryLabels[item.category] }}</td>
+                    <td><app-status-badge [status]="item.status" /></td>
+                    <td class="date">{{ item.updatedAt | date: 'd MMM y, h:mm a' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <footer class="results__footer">
+              <span class="muted">Mostrando {{ store.items().length | number }} solicitudes</span>
+              @if (store.error()) {
+                <span class="field-error" role="alert">{{ store.error() }}</span>
+              }
+              @if (store.hasMore()) {
+                <button type="button" class="btn" [disabled]="store.loadingMore()" (click)="store.loadMore()">
+                  {{ store.loadingMore() ? 'Cargando…' : 'Cargar más' }}
+                </button>
+              }
+            </footer>
+          }
+        }
+      }
+    </div>
+
+    @if (store.detail(); as detail) {
+      <aside class="detail" aria-label="Detalle de la solicitud">
+        <header class="detail__header">
+          <h2>Solicitud #{{ detail.number }}</h2>
+          <button type="button" class="btn btn--icon" aria-label="Cerrar detalle" (click)="store.closeDetail()">✕</button>
+        </header>
+
+        @switch (detail.kind) {
+          @case ('loading') {
+            <p class="muted">Cargando…</p>
+          }
+          @case ('not-found') {
+            <p class="state state--empty">No encontramos la solicitud #{{ detail.number }} en tu filial.</p>
+          }
+          @case ('error') {
+            <div class="state state--error" role="alert">
+              <p>{{ detail.message }}</p>
+              <button type="button" class="btn" (click)="store.open(detail.number)">Reintentar</button>
+            </div>
+          }
+          @case ('loaded') {
+            <h3 class="detail__title">{{ detail.data.title }}</h3>
+            <dl class="detail__meta">
+              <dt>Estado</dt>
+              <dd><app-status-badge [status]="detail.data.status" /></dd>
+              <dt>Tipo</dt>
+              <dd>{{ categoryLabels[detail.data.category] }}</dd>
+              <dt>Registrada</dt>
+              <dd>{{ detail.data.createdAt | date: 'd MMM y, h:mm a' }}</dd>
+            </dl>
+            <p class="detail__description">{{ detail.data.description }}</p>
+
+            <h4>Seguimiento</h4>
+            <ol class="timeline">
+              @for (change of detail.data.history; track $index) {
+                <li>
+                  <strong>{{ actionLabels[change.action] }}</strong>
+                  <span class="muted">
+                    {{ change.at | date: 'd MMM y, h:mm a' }} · {{ change.byRole === 'ANALYST' ? 'Centro de servicios' : 'Filial' }}
+                  </span>
+                  @if (change.comment) {
+                    <q>{{ change.comment }}</q>
+                  }
+                </li>
+              }
+            </ol>
+          }
+        }
+      </aside>
+    }
+  </div>
+</section>

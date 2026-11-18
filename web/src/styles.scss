@@ -1,0 +1,126 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f5f7f6;
+  --surface: #ffffff;
+  --surface-alt: #f0f3f2;
+  --border: #dde3e1;
+  --text: #1c2421;
+  --text-muted: #5d6b66;
+  --primary: #1f7a4d;
+  --primary-soft: #e6f3ec;
+  --on-primary: #ffffff;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --radius: 10px;
+
+  --st-registered: #44546a;
+  --st-registered-bg: #e8edf3;
+  --st-progress: #9a5b00;
+  --st-progress-bg: #fff2d9;
+  --st-resolved: #1e5fb4;
+  --st-resolved-bg: #e3eefc;
+  --st-closed: #1f7a4d;
+  --st-closed-bg: #e3f4ea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111614;
+    --surface: #182019;
+    --surface-alt: #1f2923;
+    --border: #2c3832;
+    --text: #e6ece9;
+    --text-muted: #9aa8a2;
+    --primary: #4cc38a;
+    --primary-soft: #1d3a2b;
+    --on-primary: #08130d;
+    --danger: #ff8a80;
+    --danger-soft: #3a1d1b;
+
+    --st-registered: #b7c4d6;
+    --st-registered-bg: #26303b;
+    --st-progress: #ffc861;
+    --st-progress-bg: #3a2c12;
+    --st-resolved: #8cbcff;
+    --st-resolved-bg: #1b2c45;
+    --st-closed: #6fdca5;
+    --st-closed-bg: #173326;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.45;
+}
+
+input[type='search'] {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+
+  &:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+
+  &--primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--on-primary);
+  }
+
+  &--icon {
+    padding: 0.25rem 0.6rem;
+  }
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

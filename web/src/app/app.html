@@ -1,0 +1,15 @@
+<header class="topbar">
+  <span class="brand">Mesa de Solicitudes</span>
+  @if (auth.user(); as user) {
+    <div class="session">
+      <span>
+        <strong>{{ user.name }}</strong>
+        <span class="muted"> · {{ user.tenantId }}</span>
+      </span>
+      <button type="button" class="btn" (click)="auth.logout()">Cambiar usuario</button>
+    </div>
+  }
+</header>
+<main class="container">
+  <router-outlet />
+</main>
