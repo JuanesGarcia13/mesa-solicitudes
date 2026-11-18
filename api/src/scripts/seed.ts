@@ -13,6 +13,7 @@ import { buildRequest, createRandom, type TenantSeed } from './seed-data.js';
  */
 const BATCH_SIZE = 25;
 const CONCURRENCY = 8;
+const MEASURE_RUNS = 5;
 const volume = Number(process.env['SEED_VOLUME'] ?? 50_000);
 
 const TENANTS: readonly TenantSeed[] = [
@@ -83,12 +84,25 @@ async function measure(doc: DynamoDBDocumentClient): Promise<void> {
     ['Filtro por estado CLOSED, página 100', () => repo.list(tenantId, { limit: 25, status: 'CLOSED', afterNumber: 25_000 })],
     ['Búsqueda por número', () => repo.findByNumber(tenantId, 12_345)],
   ];
-  console.log(`\nTiempos de consulta sobre la filial "${tenantId}":`);
+  // Calentamiento: la primera consulta paga el arranque en frío de DynamoDB Local (JVM)
+  // y de las conexiones HTTP; no representa el tiempo de una consulta real.
+  for (const [, probe] of probes) await probe();
+
+  console.log(`\nTiempos de consulta sobre la filial "${tenantId}" (mediana de ${MEASURE_RUNS} ejecuciones):`);
   for (const [label, probe] of probes) {
-    const t0 = performance.now();
-    await probe();
-    console.log(`  ${label.padEnd(40)} ${(performance.now() - t0).toFixed(1)} ms`);
+    const samples: number[] = [];
+    for (let run = 0; run < MEASURE_RUNS; run++) {
+      const t0 = performance.now();
+      await probe();
+      samples.push(performance.now() - t0);
+    }
+    console.log(`  ${label.padEnd(40)} ${median(samples).toFixed(1)} ms`);
   }
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
