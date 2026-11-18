@@ -10,6 +10,7 @@ export default tseslint.config(
       'no-console': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true, varsIgnorePattern: '^_' }],
       'max-depth': ['error', 3],
       'max-params': ['error', 5],
       complexity: ['error', 10],
