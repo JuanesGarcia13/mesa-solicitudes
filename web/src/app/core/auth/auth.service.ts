@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { type Observable, tap } from 'rxjs';
-import type { DevUser, SessionUser } from '../api/api.models';
+import type { SessionUser } from '../api/api.models';
 
 interface Session {
   token: string;
@@ -12,8 +12,8 @@ interface Session {
 const STORAGE_KEY = 'mesa.session';
 
 /**
- * Sesión simulada: el backend firma un token con la filial del usuario elegido.
- * El frontend nunca envía la filial; solo el token.
+ * Sesión del usuario: el backend devuelve un JWT firmado con la filial de la cuenta.
+ * El frontend solo guarda y envía ese token.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -25,12 +25,9 @@ export class AuthService {
   readonly token = computed(() => this.session()?.token ?? null);
   readonly isAuthenticated = computed(() => this.session() !== null);
 
-  devUsers(): Observable<DevUser[]> {
-    return this.http.get<DevUser[]>('/api/auth/dev-users');
-  }
-
-  login(userId: string): Observable<Session> {
-    return this.http.post<Session>('/api/auth/dev-login', { userId }).pipe(
+  /** El servidor valida las credenciales y decide la filial; el cliente nunca la envía. */
+  login(username: string, password: string): Observable<Session> {
+    return this.http.post<Session>('/api/auth/login', { username, password }).pipe(
       tap((session) => {
         this.session.set(session);
         writeStoredSession(session);

@@ -39,11 +39,8 @@ export interface SessionUser {
   userId: string;
   name: string;
   tenantId: string;
-  role: UserRole;
-}
-
-export interface DevUser extends SessionUser {
   tenantName: string;
+  role: UserRole;
 }
 
 export interface ApiError {
@@ -62,6 +59,21 @@ export const CATEGORY_LABELS: Record<RequestCategory, string> = {
   PURCHASES: 'Compras',
   PAYROLL: 'Nómina',
   ACCOUNTING: 'Contabilidad',
+};
+
+export interface ActionOption {
+  label: string;
+  requiresComment: boolean;
+  commentLabel?: string;
+  primary: boolean;
+}
+
+/** Textos de los botones. Qué acciones se muestran lo decide el backend con allowedActions. */
+export const ACTION_OPTIONS: Record<WorkflowAction, ActionOption> = {
+  START: { label: 'Iniciar atención', requiresComment: false, primary: true },
+  RESOLVE: { label: 'Marcar como resuelta', requiresComment: true, commentLabel: 'Describe la solución', primary: true },
+  CONFIRM: { label: 'Confirmar solución', requiresComment: false, primary: true },
+  REJECT: { label: 'No estoy conforme', requiresComment: true, commentLabel: '¿Qué quedó pendiente?', primary: false },
 };
 
 export const ACTION_LABELS: Record<StatusChange['action'], string> = {

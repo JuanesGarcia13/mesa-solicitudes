@@ -62,7 +62,10 @@ body {
   line-height: 1.45;
 }
 
-input[type='search'] {
+input[type='search'],
+input[type='text'],
+input[type='password'],
+textarea {
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);

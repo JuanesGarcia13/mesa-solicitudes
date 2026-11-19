@@ -26,12 +26,13 @@ describe('authInterceptor', () => {
 
   afterEach(() => http.verify());
 
+  const user = { userId: 'ana', name: 'Ana', tenantId: 'cementos', tenantName: 'Filial Cementos', role: 'REQUESTER' };
+
   it('sends only the bearer token, never a tenant header', () => {
-    auth.login('ana').subscribe();
-    http.expectOne('/api/auth/dev-login').flush({
-      token: 'signed.jwt.token',
-      user: { userId: 'ana', name: 'Ana', tenantId: 'cementos', role: 'REQUESTER' },
-    });
+    auth.login('ana.cementos', 'secreta').subscribe();
+    const login = http.expectOne('/api/auth/login');
+    expect(login.request.body).toEqual({ username: 'ana.cementos', password: 'secreta' });
+    login.flush({ token: 'signed.jwt.token', user });
 
     client.get('/api/requests').subscribe();
     const req = http.expectOne('/api/requests');
@@ -42,11 +43,8 @@ describe('authInterceptor', () => {
   });
 
   it('ends the session when the API answers 401', () => {
-    auth.login('ana').subscribe();
-    http.expectOne('/api/auth/dev-login').flush({
-      token: 't',
-      user: { userId: 'ana', name: 'Ana', tenantId: 'cementos', role: 'REQUESTER' },
-    });
+    auth.login('ana.cementos', 'secreta').subscribe();
+    http.expectOne('/api/auth/login').flush({ token: 't', user });
 
     client.get('/api/requests').subscribe({ error: () => undefined });
     http.expectOne('/api/requests').flush({}, { status: 401, statusText: 'Unauthorized' });

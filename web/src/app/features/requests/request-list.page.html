@@ -1,8 +1,8 @@
 <section class="page">
   <header class="page__header">
     <div>
-      <h1>Mis solicitudes</h1>
-      <p class="page__subtitle">Consulta en qué va cada solicitud de tu filial.</p>
+      <h1>{{ heading() }}</h1>
+      <p class="page__subtitle">Consulta en qué va cada solicitud y su seguimiento.</p>
     </div>
 
     <form class="search" role="search" (submit)="search($event)">
@@ -78,8 +78,8 @@
                   <tr
                     tabindex="0"
                     [class.is-selected]="store.detail()?.number === item.number"
-                    (click)="store.open(item.number)"
-                    (keydown.enter)="store.open(item.number)"
+                    (click)="openRequest(item.number)"
+                    (keydown.enter)="openRequest(item.number)"
                   >
                     <td class="num">#{{ item.number }}</td>
                     <td class="title">{{ item.title }}</td>
@@ -111,7 +111,7 @@
       <aside class="detail" aria-label="Detalle de la solicitud">
         <header class="detail__header">
           <h2>Solicitud #{{ detail.number }}</h2>
-          <button type="button" class="btn btn--icon" aria-label="Cerrar detalle" (click)="store.closeDetail()">✕</button>
+          <button type="button" class="btn btn--icon" aria-label="Cerrar detalle" (click)="closeDetail()">✕</button>
         </header>
 
         @switch (detail.kind) {
@@ -138,6 +138,46 @@
               <dd>{{ detail.data.createdAt | date: 'd MMM y, h:mm a' }}</dd>
             </dl>
             <p class="detail__description">{{ detail.data.description }}</p>
+
+            <section class="actions" aria-label="Acciones disponibles">
+              @if (store.actionError()) {
+                <p class="actions__error" role="alert">{{ store.actionError() }}</p>
+              }
+              @if (pendingAction(); as action) {
+                <form class="actions__comment" (submit)="submitPendingAction($event)">
+                  <label for="action-comment">{{ actionOptions[action].commentLabel }}</label>
+                  <textarea
+                    id="action-comment"
+                    rows="3"
+                    maxlength="1000"
+                    [value]="comment()"
+                    (input)="onCommentInput($event)"
+                  ></textarea>
+                  <div class="actions__buttons">
+                    <button type="submit" class="btn btn--primary" [disabled]="store.actionBusy() || !comment().trim()">
+                      {{ actionOptions[action].label }}
+                    </button>
+                    <button type="button" class="btn" (click)="cancelAction()">Cancelar</button>
+                  </div>
+                </form>
+              } @else if (detail.data.allowedActions.length > 0) {
+                <div class="actions__buttons">
+                  @for (action of detail.data.allowedActions; track action) {
+                    <button
+                      type="button"
+                      class="btn"
+                      [class.btn--primary]="actionOptions[action].primary"
+                      [disabled]="store.actionBusy()"
+                      (click)="chooseAction(action)"
+                    >
+                      {{ actionOptions[action].label }}
+                    </button>
+                  }
+                </div>
+              } @else if (nextStepHint(detail.data)) {
+                <p class="muted actions__hint">{{ nextStepHint(detail.data) }}</p>
+              }
+            </section>
 
             <h4>Seguimiento</h4>
             <ol class="timeline">

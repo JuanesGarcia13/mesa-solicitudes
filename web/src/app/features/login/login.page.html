@@ -1,0 +1,39 @@
+<section class="login">
+  <h1>Mesa de Solicitudes</h1>
+  <p class="muted">Ingresa con tu usuario. Verás únicamente las solicitudes de tu filial.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <label for="username">Usuario</label>
+    <input
+      id="username"
+      type="text"
+      formControlName="username"
+      autocomplete="username"
+      placeholder="nombre.filial"
+      [attr.aria-invalid]="showError('username') || null"
+    />
+    @if (showError('username')) {
+      <p class="field-error">Escribe tu usuario.</p>
+    }
+
+    <label for="password">Contraseña</label>
+    <input
+      id="password"
+      type="password"
+      formControlName="password"
+      autocomplete="current-password"
+      [attr.aria-invalid]="showError('password') || null"
+    />
+    @if (showError('password')) {
+      <p class="field-error">Escribe tu contraseña.</p>
+    }
+
+    @if (error()) {
+      <p class="alert" role="alert">{{ error() }}</p>
+    }
+
+    <button type="submit" class="btn btn--primary" [disabled]="busy()">
+      {{ busy() ? 'Ingresando…' : 'Ingresar' }}
+    </button>
+  </form>
+</section>

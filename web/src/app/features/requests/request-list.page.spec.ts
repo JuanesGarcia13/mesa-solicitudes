@@ -4,7 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import localeEsCo from '@angular/common/locales/es-CO';
 import { LOCALE_ID } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import type { RequestPage, RequestSummary } from '../../core/api/api.models';
+import { provideRouter } from '@angular/router';
+import type { RequestDetail, RequestPage, RequestSummary, WorkflowAction } from '../../core/api/api.models';
 import { RequestListPage } from './request-list.page';
 
 registerLocaleData(localeEsCo);
@@ -26,7 +27,12 @@ describe('RequestListPage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [RequestListPage],
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: LOCALE_ID, useValue: 'es-CO' }],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: LOCALE_ID, useValue: 'es-CO' },
+      ],
     });
     fixture = TestBed.createComponent(RequestListPage);
     http = TestBed.inject(HttpTestingController);
@@ -114,6 +120,87 @@ describe('RequestListPage', () => {
     fixture.detectChanges();
 
     expect(text()).toContain('No encontramos la solicitud #999 en tu filial.');
+  });
+
+  describe('moving a request through the process', () => {
+    const detail = (status: RequestSummary['status'], allowedActions: WorkflowAction[]): RequestDetail => ({
+      ...summary(7, status),
+      description: 'detalle',
+      createdBy: 'ana',
+      version: 1,
+      history: [],
+      allowedActions,
+    });
+
+    const openDetail = (d: RequestDetail) => {
+      respondList({ items: [summary(7, d.status)], nextCursor: null });
+      (el.querySelector('tbody tr') as HTMLElement).click();
+      fixture.detectChanges();
+      http.expectOne('/api/requests/7').flush(d);
+      fixture.detectChanges();
+    };
+
+    const actionButtons = () =>
+      Array.from(el.querySelectorAll<HTMLButtonElement>('.actions button')).map((b) => b.textContent?.trim());
+
+    const clickAction = (label: string) => {
+      Array.from(el.querySelectorAll<HTMLButtonElement>('.actions button'))
+        .find((b) => b.textContent?.trim() === label)
+        ?.click();
+      fixture.detectChanges();
+    };
+
+    it('shows only the actions the backend allows for this user', () => {
+      openDetail(detail('RESOLVED', ['CONFIRM', 'REJECT']));
+
+      expect(actionButtons()).toEqual(['Confirmar solución', 'No estoy conforme']);
+    });
+
+    it('executes an action and updates the status in the detail and in the list', () => {
+      openDetail(detail('REGISTERED', ['START']));
+
+      clickAction('Iniciar atención');
+      const req = http.expectOne('/api/requests/7/transitions');
+      expect(req.request.body).toEqual({ action: 'START' });
+      req.flush(detail('IN_PROGRESS', ['RESOLVE']));
+      fixture.detectChanges();
+
+      expect(el.querySelector('tbody tr')?.textContent).toContain('En atención');
+      expect(actionButtons()).toEqual(['Marcar como resuelta']);
+    });
+
+    it('asks for a comment when the action requires one', () => {
+      openDetail(detail('RESOLVED', ['CONFIRM', 'REJECT']));
+
+      clickAction('No estoy conforme');
+      const submitButton = el.querySelector('.actions__comment button[type=submit]') as HTMLButtonElement;
+      expect(submitButton.disabled).toBeTrue();
+      const textarea = el.querySelector('textarea') as HTMLTextAreaElement;
+      textarea.value = 'El pago no aparece';
+      textarea.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      (el.querySelector('.actions__comment') as HTMLFormElement).dispatchEvent(new Event('submit'));
+
+      const req = http.expectOne('/api/requests/7/transitions');
+      expect(req.request.body).toEqual({ action: 'REJECT', comment: 'El pago no aparece' });
+      req.flush(detail('IN_PROGRESS', []));
+    });
+
+    it('shows why the backend rejected the action and reloads the real state', () => {
+      openDetail(detail('REGISTERED', ['START']));
+
+      clickAction('Iniciar atención');
+      http.expectOne('/api/requests/7/transitions').flush(
+        { code: 'CONCURRENT_MODIFICATION', message: 'La solicitud cambió mientras se procesaba tu acción.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+      fixture.detectChanges();
+
+      expect(el.querySelector('.actions__error')?.textContent).toContain('La solicitud cambió');
+      http.expectOne('/api/requests/7').flush(detail('IN_PROGRESS', ['RESOLVE']));
+      fixture.detectChanges();
+      expect(actionButtons()).toEqual(['Marcar como resuelta']);
+    });
   });
 
   it('validates the search input before calling the API', () => {

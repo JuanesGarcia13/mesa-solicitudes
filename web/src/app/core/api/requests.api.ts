@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
-import type { RequestDetail, RequestPage, RequestStatus } from './api.models';
+import type { RequestDetail, RequestPage, RequestStatus, WorkflowAction } from './api.models';
 
 export interface ListParams {
   status?: RequestStatus | null;
@@ -22,5 +22,12 @@ export class RequestsApi {
 
   get(number: number): Observable<RequestDetail> {
     return this.http.get<RequestDetail>(`/api/requests/${number}`);
+  }
+
+  transition(number: number, action: WorkflowAction, comment?: string): Observable<RequestDetail> {
+    return this.http.post<RequestDetail>(`/api/requests/${number}/transitions`, {
+      action,
+      ...(comment?.trim() ? { comment: comment.trim() } : {}),
+    });
   }
 }

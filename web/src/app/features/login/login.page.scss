@@ -1,0 +1,38 @@
+.login {
+  max-width: 26rem;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  h1 {
+    margin: 0 0 0.5rem;
+  }
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+
+  label {
+    margin-top: 0.6rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .btn {
+    margin-top: 1.25rem;
+    padding: 0.65rem 1rem;
+  }
+}
+
+.alert {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}

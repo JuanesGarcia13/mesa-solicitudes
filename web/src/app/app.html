@@ -4,9 +4,11 @@
     <div class="session">
       <span>
         <strong>{{ user.name }}</strong>
-        <span class="muted"> · {{ user.tenantId }}</span>
+        <span class="muted">
+          · {{ user.tenantName }} · {{ user.role === 'ANALYST' ? 'Analista' : 'Filial' }}
+        </span>
       </span>
-      <button type="button" class="btn" (click)="auth.logout()">Cambiar usuario</button>
+      <button type="button" class="btn" (click)="auth.logout()">Cerrar sesión</button>
     </div>
   }
 </header>

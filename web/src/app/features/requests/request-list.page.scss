@@ -68,6 +68,12 @@
 
   &--with-detail {
     grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+
+    // Con el detalle abierto el tipo ya se ve en el panel: se libera espacio para la fecha.
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+      display: none;
+    }
   }
 }
 
@@ -229,6 +235,47 @@
 .detail__description {
   margin: 1rem 0 0;
   color: var(--text-muted);
+}
+
+.actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions__comment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label {
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.actions__error {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.actions__hint {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .timeline {

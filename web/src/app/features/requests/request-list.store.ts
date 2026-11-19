@@ -1,7 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Subscription } from 'rxjs';
-import type { RequestDetail, RequestStatus, RequestSummary } from '../../core/api/api.models';
+import type {
+  RequestDetail,
+  RequestStatus,
+  RequestSummary,
+  WorkflowAction,
+} from '../../core/api/api.models';
 import { errorMessage } from '../../core/api/error-message';
 import { RequestsApi } from '../../core/api/requests.api';
 
@@ -30,6 +35,8 @@ export class RequestListStore {
   readonly loadingMore = signal(false);
   readonly error = signal<string | null>(null);
   readonly detail = signal<DetailState | null>(null);
+  readonly actionBusy = signal(false);
+  readonly actionError = signal<string | null>(null);
 
   readonly isEmpty = computed(() => this.state() === 'loaded' && this.items().length === 0);
   readonly hasMore = computed(() => this.nextCursor() !== null);
@@ -77,8 +84,45 @@ export class RequestListStore {
   }
 
   open(number: number): void {
+    this.actionError.set(null);
+    this.fetchDetail(number);
+  }
+
+  closeDetail(): void {
     this.detailSub?.unsubscribe();
-    this.detail.set({ kind: 'loading', number });
+    this.actionError.set(null);
+    this.detail.set(null);
+  }
+
+  /**
+   * Ejecuta una acción del proceso. Las reglas viven en el backend: si la rechaza,
+   * se muestra su mensaje y se recarga el detalle para reflejar el estado real.
+   */
+  transition(action: WorkflowAction, comment: string | undefined, onSuccess: () => void): void {
+    const current = this.detail();
+    if (current?.kind !== 'loaded' || this.actionBusy()) return;
+    this.actionBusy.set(true);
+    this.actionError.set(null);
+    this.api.transition(current.number, action, comment).subscribe({
+      next: (data) => {
+        this.detail.set({ kind: 'loaded', number: data.number, data });
+        this.items.update((items) =>
+          items.map((i) => (i.number === data.number ? { ...i, status: data.status, updatedAt: data.updatedAt } : i)),
+        );
+        this.actionBusy.set(false);
+        onSuccess();
+      },
+      error: (err: unknown) => {
+        this.actionError.set(errorMessage(err));
+        this.actionBusy.set(false);
+        if (err instanceof HttpErrorResponse && err.status === 409) this.fetchDetail(current.number);
+      },
+    });
+  }
+
+  private fetchDetail(number: number): void {
+    this.detailSub?.unsubscribe();
+    if (this.detail()?.number !== number) this.detail.set({ kind: 'loading', number });
     this.detailSub = this.api.get(number).subscribe({
       next: (data) => this.detail.set({ kind: 'loaded', number, data }),
       error: (err: unknown) =>
@@ -88,10 +132,5 @@ export class RequestListStore {
             : { kind: 'error', number, message: errorMessage(err) },
         ),
     });
-  }
-
-  closeDetail(): void {
-    this.detailSub?.unsubscribe();
-    this.detail.set(null);
   }
 }
