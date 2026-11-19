@@ -25,17 +25,19 @@ docker compose up --build
 
 Al arrancar, el job `seed` crea la tabla, carga los datos de prueba e imprime cuánto tardan las consultas. La API arranca cuando el seed termina (unos 30 s).
 
-### Usuarios simulados
+### Usuarios de demostración
 
-En la pantalla de ingreso eliges un usuario. El backend emite un JWT firmado con su filial.
+Ingresa con usuario y contraseña. El backend valida la contraseña (hash scrypt), **deduce la filial de la cuenta** y devuelve un JWT firmado con ella; el navegador nunca envía la filial. Contraseña de todos: **`Mesa2026*`**
 
 | Usuario | Filial | Rol | Datos |
 |---|---|---|---|
-| Ana Restrepo | Cementos | Filial | **50.000 solicitudes** (volumen) |
-| Carlos Mejía | Cementos | Analista | — |
-| Laura Gómez | Energía | Filial | 120 solicitudes |
-| Diego Ríos | Energía | Analista | — |
-| Sofía Vélez | Concesiones | Filial | ninguna (estado vacío) |
+| `ana.cementos` | Cementos | Filial | **50.000 solicitudes** (volumen) |
+| `carlos.cementos` | Cementos | Analista | las mismas 50.000 |
+| `laura.energia` | Energía | Filial | 120 solicitudes |
+| `diego.energia` | Energía | Analista | las mismas 120 |
+| `sofia.concesiones` | Concesiones | Filial | ninguna (estado vacío) |
+
+En el detalle de cada solicitud aparecen solo las acciones que el rol puede ejecutar en ese estado. El analista ve *Iniciar atención* y *Marcar como resuelta*; la filial ve *Confirmar solución* y *No estoy conforme*. Las reglas viven en el backend y la pantalla solo muestra lo que este permite.
 
 ### Datos de prueba
 
@@ -47,7 +49,7 @@ En la pantalla de ingreso eliges un usuario. El backend emite un JWT firmado con
 
 ```bash
 B=http://localhost:3000/api
-login() { curl -s -X POST $B/auth/dev-login -H 'content-type: application/json' -d "{\"userId\":\"$1\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/'; }
+login() { curl -s -X POST $B/auth/login -H 'content-type: application/json' -d "{\"username\":\"$1\",\"password\":\"Mesa2026*\"}" | sed -E 's/.*"token":"([^"]+)".*/\1/'; }
 ANA=$(login ana.cementos); CARLOS=$(login carlos.cementos)
 
 # La filial registra una solicitud
@@ -60,6 +62,7 @@ curl -s -X POST $B/requests/50001/transitions -H "Authorization: Bearer $CARLOS"
 
 | Endpoint | Descripción |
 |---|---|
+| `POST /api/auth/login` | `{ username, password }` → `{ token, user }` (solo en local; en AWS lo hace Cognito) |
 | `GET /api/requests?status=&limit=&cursor=` | Lista paginada de la filial |
 | `GET /api/requests/:number` | Detalle con historial y `allowedActions` |
 | `POST /api/requests` | Registrar (solo rol filial) |
@@ -85,8 +88,9 @@ Las pruebas de contrato del repositorio también corren contra DynamoDB cuando e
 | `api/test/domain/request-workflow.test.ts` | Cada regla del proceso, incluidas todas las combinaciones inválidas |
 | `api/test/http/request-workflow.http.test.ts` | Mensajes y códigos HTTP; la solicitud queda igual tras un intento inválido |
 | `api/test/http/tenant-isolation.test.ts` | No listar, leer ni modificar lo ajeno; mismo 404 que lo inexistente; token alterado |
+| `api/test/http/auth.http.test.ts` | Login: la filial la decide el servidor; mismo 401 para usuario inexistente o contraseña errada |
 | `api/test/infrastructure/repository.contract.test.ts` | Memoria y DynamoDB cumplen el mismo contrato (llaves, índice, escritura condicional) |
-| `web/src/app/features/requests/*.spec.ts` | Lista, filtro, paginación, búsqueda, estados vacío y error |
+| `web/src/app/features/**/*.spec.ts` | Login; lista, filtro, paginación, búsqueda, estados vacío y error; acciones según rol |
 
 **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) corre en tres jobs paralelos: api, web e infra. Cada uno ejecuta lint y pruebas; además, api compila, web hace el build e infra ejecuta `cdk synth`.
 
@@ -100,10 +104,10 @@ Cognito: emite el token; tenantId es un atributo inmutable
 
 ## Qué dejé por fuera y por qué
 
-- **Pantalla para analistas y para confirmar o rechazar.** El problema 2 no la pide y el backend ya la soporta (`allowedActions` en el detalle). Prioricé que la filial pueda consultar, que es el dolor del problema 1.
 - **Registrar solicitudes desde la pantalla.** El endpoint existe y está probado. La carga real hoy entra por correo; un formulario es el siguiente paso natural.
 - **Búsqueda por texto libre.** Requiere un índice de búsqueda (OpenSearch). Número y estado cubren "encontrar una solicitud específica" con costo constante.
-- **Identidad real en local.** Se simula con JWT firmado; en AWS el stack ya define Cognito y la API sabe validar su JWKS.
+- **Gestión de usuarios y protección contra fuerza bruta en el login local.** Las cuentas de demostración están fijas en el backend. En AWS esto lo resuelve Cognito (registro, MFA, bloqueo por intentos), y la API solo valida su token.
+- **Pantalla de acciones (extra).** El problema 2 no exige pantalla. Se agregaron botones en el detalle para demostrar el proceso de punta a punta, pero las reglas y sus pruebas están en el backend.
 - **Despliegue real y pipeline de CD.** La prueba pide validar la IaC sin desplegar.
 - **Observabilidad avanzada.** Hay logs estructurados con `tenantId` y `userId` por petición, y X-Ray activo en Lambda; faltan métricas de negocio y alarmas.
 

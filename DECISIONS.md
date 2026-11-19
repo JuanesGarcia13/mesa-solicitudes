@@ -32,7 +32,7 @@ La **Solicitud** guarda `number, title, description, category, status, createdBy
 - **Descartado:** una tabla por filial (operación y migraciones N veces) o filtrar en memoria después de leer (un descuido expone datos).
 
 ## Identidad
-- **Local:** JWT HS256 que emite `/api/auth/dev-login` para usuarios simulados.
+- **Local:** `POST /api/auth/login` con usuario y contraseña (hash scrypt). El servidor deduce la filial de la cuenta y firma un JWT HS256 con ella.
 - **AWS:** Cognito con `tenantId` como atributo **inmutable**; la API valida contra el JWKS (`AUTH_MODE=jwks`). El código de negocio es el mismo en ambos casos.
 
 ## Parcial o pendiente (visto pero no construido)
