@@ -3,6 +3,7 @@ import { DomainError } from '../domain/errors.js';
 
 const HTTP_STATUS_BY_CODE: Readonly<Record<string, number>> = {
   UNAUTHENTICATED: 401,
+  INVALID_CREDENTIALS: 401,
   ACTION_NOT_ALLOWED: 403,
   REQUEST_NOT_FOUND: 404,
   VALIDATION_ERROR: 400,

@@ -44,6 +44,15 @@ export class ConcurrencyConflictError extends DomainError {
   }
 }
 
+/** Mismo mensaje para usuario inexistente o contraseña errada: no revela qué cuentas existen. */
+export class InvalidCredentialsError extends DomainError {
+  readonly code = 'INVALID_CREDENTIALS';
+
+  constructor() {
+    super('Usuario o contraseña incorrectos.');
+  }
+}
+
 export class AuthenticationError extends DomainError {
   readonly code = 'UNAUTHENTICATED';
 

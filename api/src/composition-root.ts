@@ -3,8 +3,9 @@ import type { ServiceRequestRepository } from './application/ports.js';
 import { ServiceRequestService } from './application/service-request.service.js';
 import type { AppConfig, AuthConfig } from './config.js';
 import { buildApp } from './http/app.js';
-import { DEV_TENANTS, DEV_USERS } from './infrastructure/auth/dev-users.js';
+import { DEMO_ACCOUNTS } from './infrastructure/auth/demo-accounts.js';
 import { HmacTokenService, JwksTokenVerifier, type TokenVerifier } from './infrastructure/auth/token-service.js';
+import { InMemoryUserDirectory } from './infrastructure/auth/user-directory.js';
 import { createDocumentClient, createDynamoClient } from './infrastructure/dynamo/dynamo-client.js';
 import { DynamoServiceRequestRepository } from './infrastructure/dynamo/dynamo-service-request.repository.js';
 import { InMemoryServiceRequestRepository } from './infrastructure/memory/in-memory-service-request.repository.js';
@@ -17,7 +18,9 @@ export async function createApplication(config: AppConfig): Promise<FastifyInsta
     tokenVerifier: verifier,
     corsOrigins: config.corsOrigins,
     logger: { level: config.logLevel, redact: ['req.headers.authorization'] },
-    ...(devTokens ? { devAuth: { users: DEV_USERS, tenants: DEV_TENANTS, tokens: devTokens } } : {}),
+    ...(devTokens
+      ? { localAuth: { directory: new InMemoryUserDirectory(DEMO_ACCOUNTS), tokens: devTokens } }
+      : {}),
   });
 }
 
