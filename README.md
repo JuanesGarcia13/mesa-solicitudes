@@ -186,6 +186,8 @@ npm start --prefix web    # http://localhost:4200
 
 ## 7. Arquitectura
 
+La infraestructura de AWS está definida con CDK y validada con `cdk synth`, **sin desplegar**. El backend queda listo para Lambda: valida tokens de Cognito por JWKS y lee `custom:tenantId`.
+
 ```
 Local (docker compose)                      AWS (infra/, validado con cdk synth)
 ──────────────────────                      ────────────────────────────────────
@@ -211,7 +213,7 @@ Navegador → nginx ─┬─ /      Angular        CloudFront ─┬─ /*     
 - **Registrar solicitudes desde la pantalla.** El endpoint existe y está probado. Hoy las solicitudes entran por correo; el formulario es el siguiente paso natural, pero no lo exige ningún criterio.
 - **Búsqueda por texto libre.** Requiere un índice de búsqueda (OpenSearch). El número y el estado cubren "encontrar una solicitud específica" con costo constante.
 - **Gestión de usuarios.** Las cuentas de demostración están fijas en el backend. En AWS, el registro, el MFA y la recuperación los resuelve Cognito.
-- **Despliegue real y pipeline de CD.** La IaC se valida sin desplegar. Un CD agregaría `cdk deploy` con credenciales OIDC y aprobación manual.
+- **Despliegue real y pipeline de CD.** La IaC se valida sin desplegar. Para desplegar faltan dos piezas que dejé fuera a propósito: conectar el login de Angular con Cognito (hoy usa el login local, que en AWS se desactiva) y publicar el build de Angular en S3. Las dos irían en un pipeline de CD con `cdk deploy`, credenciales OIDC y aprobación manual.
 - **Pruebas E2E en el CI** (Playwright). El flujo completo está cubierto por pruebas HTTP del backend y de componentes del frontend, y se verificó manualmente en el navegador.
 - **Observabilidad avanzada.** Hay logs estructurados con `tenantId` y `userId` por petición (sin el token), y X-Ray activo en Lambda. Faltan métricas de negocio y alarmas.
 
