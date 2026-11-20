@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ServiceRequestService } from '../../src/application/service-request.service.js';
 import { buildApp } from '../../src/http/app.js';
 import { DEMO_ACCOUNTS } from '../../src/infrastructure/auth/demo-accounts.js';
+import { LoginAttemptLimiter } from '../../src/infrastructure/auth/login-attempt-limiter.js';
 import { HmacTokenService } from '../../src/infrastructure/auth/token-service.js';
 import { InMemoryUserDirectory } from '../../src/infrastructure/auth/user-directory.js';
 import { InMemoryServiceRequestRepository } from '../../src/infrastructure/memory/in-memory-service-request.repository.js';
@@ -18,7 +19,11 @@ describe('login with username and password', () => {
       service: new ServiceRequestService(new InMemoryServiceRequestRepository()),
       tokenVerifier: tokens,
       corsOrigins: [],
-      localAuth: { directory: new InMemoryUserDirectory(DEMO_ACCOUNTS), tokens },
+      localAuth: {
+        directory: new InMemoryUserDirectory(DEMO_ACCOUNTS),
+        tokens,
+        limiter: new LoginAttemptLimiter({ maxFailures: 5, windowMs: 60_000 }),
+      },
     });
   });
 
@@ -73,5 +78,67 @@ describe('login with username and password', () => {
 
     expect(anaList.items.map((i: { title: string }) => i.title)).toEqual(['Nómina de octubre']);
     expect(lauraList.items).toEqual([]);
+  });
+});
+
+describe('login brute-force protection', () => {
+  const MAX_FAILURES = 3;
+  const WINDOW_MS = 15 * 60 * 1000;
+  let app: FastifyInstance;
+  let now: number;
+
+  beforeAll(async () => {
+    now = 0;
+    const tokens = new HmacTokenService('test-secret-with-at-least-32-characters!!');
+    app = await buildApp({
+      service: new ServiceRequestService(new InMemoryServiceRequestRepository()),
+      tokenVerifier: tokens,
+      corsOrigins: [],
+      localAuth: {
+        directory: new InMemoryUserDirectory(DEMO_ACCOUNTS),
+        tokens,
+        limiter: new LoginAttemptLimiter({ maxFailures: MAX_FAILURES, windowMs: WINDOW_MS, now: () => now }),
+      },
+    });
+  });
+
+  afterAll(() => app.close());
+
+  const login = (username: string, password: string) =>
+    app.inject({ method: 'POST', url: '/api/auth/login', payload: { username, password } });
+
+  const failTimes = async (username: string, times: number) => {
+    for (let i = 0; i < times; i += 1) {
+      expect((await login(username, 'incorrecta')).statusCode).toBe(401);
+    }
+  };
+
+  it('locks the account after repeated failures, even for the right password, and says when to retry', async () => {
+    await failTimes('ana.cementos', MAX_FAILURES);
+
+    const locked = await login('ana.cementos', DEMO_PASSWORD);
+
+    expect(locked.statusCode).toBe(429);
+    expect(locked.json().code).toBe('TOO_MANY_ATTEMPTS');
+    expect(Number(locked.headers['retry-after'])).toBe(WINDOW_MS / 1000);
+  });
+
+  it('does not affect other accounts', async () => {
+    expect((await login('laura.energia', DEMO_PASSWORD)).statusCode).toBe(200);
+  });
+
+  it('allows logging in again once the window expires', async () => {
+    now += WINDOW_MS;
+
+    expect((await login('ana.cementos', DEMO_PASSWORD)).statusCode).toBe(200);
+  });
+
+  it('a successful login resets the failure count', async () => {
+    await failTimes('diego.energia', MAX_FAILURES - 1);
+    expect((await login('diego.energia', DEMO_PASSWORD)).statusCode).toBe(200);
+
+    await failTimes('diego.energia', MAX_FAILURES - 1);
+
+    expect((await login('diego.energia', DEMO_PASSWORD)).statusCode).toBe(200);
   });
 });

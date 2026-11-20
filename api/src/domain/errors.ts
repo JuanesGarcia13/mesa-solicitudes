@@ -53,6 +53,14 @@ export class InvalidCredentialsError extends DomainError {
   }
 }
 
+export class TooManyLoginAttemptsError extends DomainError {
+  readonly code = 'TOO_MANY_ATTEMPTS';
+
+  constructor(readonly retryAfterSeconds: number) {
+    super('Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.');
+  }
+}
+
 export class AuthenticationError extends DomainError {
   readonly code = 'UNAUTHENTICATED';
 

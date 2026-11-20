@@ -4,6 +4,7 @@ import { ServiceRequestService } from './application/service-request.service.js'
 import type { AppConfig, AuthConfig } from './config.js';
 import { buildApp } from './http/app.js';
 import { DEMO_ACCOUNTS } from './infrastructure/auth/demo-accounts.js';
+import { LoginAttemptLimiter } from './infrastructure/auth/login-attempt-limiter.js';
 import { HmacTokenService, JwksTokenVerifier, type TokenVerifier } from './infrastructure/auth/token-service.js';
 import { InMemoryUserDirectory } from './infrastructure/auth/user-directory.js';
 import { createDocumentClient, createDynamoClient } from './infrastructure/dynamo/dynamo-client.js';
@@ -19,9 +20,16 @@ export async function createApplication(config: AppConfig): Promise<FastifyInsta
     corsOrigins: config.corsOrigins,
     logger: { level: config.logLevel, redact: ['req.headers.authorization'] },
     ...(devTokens
-      ? { localAuth: { directory: new InMemoryUserDirectory(DEMO_ACCOUNTS), tokens: devTokens } }
+      ? { localAuth: { directory: new InMemoryUserDirectory(DEMO_ACCOUNTS), tokens: devTokens, limiter: createLoginLimiter() } }
       : {}),
   });
+}
+
+const MAX_LOGIN_FAILURES = 5;
+const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
+
+function createLoginLimiter(): LoginAttemptLimiter {
+  return new LoginAttemptLimiter({ maxFailures: MAX_LOGIN_FAILURES, windowMs: LOGIN_LOCK_WINDOW_MS });
 }
 
 function createTokenServices(auth: AuthConfig): { verifier: TokenVerifier; devTokens?: HmacTokenService } {

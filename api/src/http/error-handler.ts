@@ -1,5 +1,5 @@
 import type { FastifyError, FastifyInstance } from 'fastify';
-import { DomainError } from '../domain/errors.js';
+import { DomainError, TooManyLoginAttemptsError } from '../domain/errors.js';
 
 const HTTP_STATUS_BY_CODE: Readonly<Record<string, number>> = {
   UNAUTHENTICATED: 401,
@@ -10,6 +10,7 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<string, number>> = {
   INVALID_TRANSITION: 409,
   REQUEST_CLOSED: 409,
   CONCURRENT_MODIFICATION: 409,
+  TOO_MANY_ATTEMPTS: 429,
 };
 
 export interface ErrorBody {
@@ -19,6 +20,9 @@ export interface ErrorBody {
 
 export function registerErrorHandling(app: FastifyInstance): void {
   app.setErrorHandler<FastifyError>((error, request, reply) => {
+    if (error instanceof TooManyLoginAttemptsError) {
+      void reply.header('Retry-After', String(error.retryAfterSeconds));
+    }
     if (error instanceof DomainError) {
       return reply.status(HTTP_STATUS_BY_CODE[error.code] ?? 400).send(body(error.code, error.message));
     }
