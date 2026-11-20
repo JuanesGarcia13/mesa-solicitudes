@@ -10,3 +10,5 @@ cdk.out/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+.postman/
+postman/
